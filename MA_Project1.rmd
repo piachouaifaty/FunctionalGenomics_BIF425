@@ -204,7 +204,7 @@ palmieri_eset = oligo::rma(raw_data, target="core", normalize=FALSE)
 ```
 
 ```{r}
-head(Biobase::exprs(palmieri_eset))
+Biobase::exprs(palmieri_eset)
 ```
 
 #### Plotting the RLE
@@ -271,9 +271,10 @@ head(samplepro)
 
 ```{r}
 head(Biobase::exprs(palmieri_eset_norm))
+#raw_probes=rownames(Biobase::exprs(palmieri_eset_norm))
 ```
 
-So far the processed data from the original paper and the pipeline's data after normalization are very similar. However, there seems to be around a 1-unit difference [~0.8-1.20] between the two. In the paper, the authors stated having standardized the expression values using ComBat to remove the batch effect after running RMA, so that may be the cause of this discrepancy.
+So far the processed data from the original paper and the pipeline's data after normalization are more or less similar. However, there seems to be around a 1-unit difference [~0.8-1.20] between the two. In the paper, the authors stated having standardized the expression values using ComBat to remove the batch effect after running RMA, so that may be the cause of this discrepancy.
 
 #### Heatmap clustering analysis
 
@@ -333,8 +334,12 @@ pheatmap(dists, col = (hmcol),
 
 #### PCA After Normalization
 
+
 ```{r}
-exp_palmieri <- Biobase::exprs(palmieri_eset_norm) 
+exp_palmieri <- Biobase::exprs(palmieri_eset_norm)
+```
+
+```{r}
 PCA <- prcomp(t(exp_palmieri), scale = FALSE)
 
 percentVar <- round(100*PCA$sdev^2/sum(PCA$sdev^2),1)
@@ -400,13 +405,13 @@ for(r in 1:nrow(contr_df))
 
 #probes to be removed
 probes=unique(probes)
+probes
 ```
 
 Below is the number of probes that will be removed.
 
 ```{r}
 length(probes)
-probes
 ```
 
 We then remove these probes from the expression set
@@ -423,8 +428,17 @@ pr_rmv
 pr_rmv=!pr_rmv
 table(pr_rmv)
 palmieri_manfiltered <- subset(palmieri_eset_norm, pr_rmv)
+Biobase::pData(palmieri_manfiltered)
+```
+
+```{r}
 head(Biobase::exprs(palmieri_manfiltered))
 ```
+
+```{r}
+#rownames(Biobase::exprs(raw_data)) = raw_probes
+```
+
 
 Next, the authors log-average the triplicate data into one value. We cannot average the log value of the samples, we should average the original linear value then log it to get the correct average.
 
@@ -453,7 +467,7 @@ cis_df[,1]=cis_df[,"rmeans"]
 ciscoln=colnames(cis_df)
 avgsamplen=(ciscoln[1])
 avgsample=cis_df[,1, drop=FALSE]
-avgsamplen
+#avgsamplen
 Biobase::exprs(palmieri_manfiltered2)[,avgsamplen]=avgsample
 rmvsamples=c(rmvsamples, ciscoln[2:(length(ciscoln)-1)])
 
@@ -463,30 +477,34 @@ contrn=row.names(control)
 contr_df = exp_filtered[,c(contrn)]
 contrown=row.names(contr_df)
 contr_df=2^(contr_df)
-rmeans=rowMeans(cis_df)
+rmeans=rowMeans(contr_df)
 contr_df=cbind(contr_df, rmeans)
 contr_df[,"rmeans"]=log2(contr_df[,"rmeans"])
 contr_df[,1]=contr_df[,"rmeans"]
 contrcoln=colnames(contr_df)
 avgsamplen=(contrcoln[1])
 avgsample=contr_df[,1, drop=FALSE]
-avgsamplen
+#avgsamplen
 Biobase::exprs(palmieri_manfiltered2)[,avgsamplen]=avgsample
-rmvsamples=c(rmvsamples, contrcoln[2:(length(contrcoln)-1)]) }
+rmvsamples=c(rmvsamples, contrcoln[2:(length(contrcoln)-1)]) 
+
+}
 
 rmvsamples=c(rmvsamples, "GSM1160879_SMhu172.CEL")
-
 #palmieri_manfiltered2 is the expression set with the averaged probes, still need to remove the rmvsamples from the expression set
 
 rmvsamples
+length(rmvsamples)
 
 ```
 
 
+
 ```{r}
 totalsamples=colnames(Biobase::exprs(palmieri_manfiltered2))
-keepsamples = totalsamples[! totalsamples %in% rmvsamples]
+keepsamples = totalsamples[! (totalsamples %in% rmvsamples)]
 keepsamples
+length(keepsamples)
 ```
 
 
@@ -575,6 +593,15 @@ rownames(fData(palmieri_final)) <- fData(palmieri_final)$PROBEID
 validObject(palmieri_final)
 ```
 
+```{r}
+head(Biobase::pData(palmieri_final))
+```
+
+```{r}
+head(Biobase::exprs(palmieri_final))
+```
+
+
 #### Getting the cisplatin-induced response of both types of cells
 
 To detect differential responses to cisplatin between epithelial and mesenchymal-like cell lines, the transcriptomic responses to cisplatin were computed by subtracting the gene expression value of control (untreated) from that of cisplatin-treated cells.
@@ -582,7 +609,7 @@ To detect differential responses to cisplatin between epithelial and mesenchymal
 ```{r}
 SDRF_f = Biobase::pData(palmieri_final)
 expr_f = Biobase::exprs(palmieri_final)
-head(SDRF_f)
+SDRF_f
 ```
 
 ```{r}
@@ -601,7 +628,8 @@ length(cell_line_names)
 ```{r}
 
 keep=vector()
-for(value in cell_line_names){
+for(value in cell_line_names)
+  {
 cell_lines=subset(SDRF_f, FactorValue..CELL.LINE. == value)
 
 cisplatin=subset(cell_lines, FactorValue..TREATMENT. == "cisplatin")
@@ -615,7 +643,8 @@ contr_df = expr_f[,c(contrn), drop=FALSE]
 cis_df=cis_df-contr_df
 Biobase::exprs(palmieri_diff)[,cisn]=cis_df
 
-keep=c(keep, cisn)}
+keep=c(keep, cisn)
+}
 
 length(keep)
 ```
@@ -633,6 +662,63 @@ expr_f = Biobase::exprs(palmieri_d)
 ```
 
 #### Statistical Analysis
+
+Mann-Whitney U-test was used to detect the differential transcriptomic responses between the expression changes by cisplatin treatment in epithelial-like cell line with those in mesenchymal-like cell lines with a cutoff value of P<0.01.  
+
+After checking the results table provided by the authors, I find the maximum p-value of the genes they considered to be differentially expressed, and find it to be 0.009  
+So a cutoff p-value of 0.01 seems reasonable
+```{r}
+loc = file.path(suppl_dir, "differentially_expressed_genes.xls")
+diffgenes_paper = read_excel(loc)
+diffexpaper = diffgenes_paper[,"Probe"]
+max(diffgenes_paper[,"MW.pv"])
+
+```
+
+#### Performing the U-Test
+
+
+```{r}
+genelist=rownames(expr_f)
+epi_samples = rownames(subset(SDRF_f, SDRF_f[,"Classification"]=="Epithelial-like"))
+mes_samples = rownames(subset(SDRF_f, SDRF_f[,"Classification"]=="Mesenchymal-like"))
+
+epi_values = expr_f["8144516", epi_samples, drop=FALSE]
+mes_values = expr_f["8144516", mes_samples, drop=FALSE]
+
+t = wilcox.test(mes_values, epi_values, paired=FALSE)
+t["p.value"]
+
+```
+
+```{r}
+pvals <- data.frame(Probe=integer(), pvalue=double())
+
+genelist=rownames(expr_f)
+epi_samples = rownames(subset(SDRF_f, SDRF_f[,"Classification"]=="Epithelial-like"))
+mes_samples = rownames(subset(SDRF_f, SDRF_f[,"Classification"]=="Mesenchymal-like"))
+for(value in genelist)
+{ epi_values = expr_f[value, epi_samples, drop=FALSE]
+mes_values = expr_f[value, mes_samples, drop=FALSE]
+
+t=wilcox.test(mes_values, epi_values, paired=FALSE)
+p=t["p.value"]
+df = c(value, p)
+pvals=rbind(pvals, df)
+}
+```
+
+```{r}
+genelist=rownames(expr_f)
+#diffexpaper
+genelist
+#diffexpaper
+#samess = diffexpaper %in% genelist
+
+#samess
+
+```
+
 
 
 
