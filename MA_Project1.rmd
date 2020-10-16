@@ -428,34 +428,56 @@ head(Biobase::exprs(palmieri_manfiltered))
 Next, the authors log-average the triplicate data into one value. We cannot average the log value of the samples, we should average the original linear value then log it to get the correct average.
 
 ```{r}
-exp_filtered = Biobase::exprs(palmieri_manfiltered)
-```
+palmieri_manfiltered2=palmieri_manfiltered
+exp_filtered = Biobase::exprs(palmieri_manfiltered2)
 
-
-```{r}
-library(tibble)
-newsamples=vector()
 triplicate_cell_lines = c("A2008", "A2780", "C13", "CH1", "DOV13", "DOV13B", "FU-OV-1", "HeyA8", "HeyC2", "IGROV-1", "OV90", "OVCA420", "OVCA429", "OVCA433", "OVCAR-10", "OVCAR-8", "PA-1", "TYK-nu")
 
-cell_lines=subset(SDRF2, FactorValue..CELL.LINE. == "A2008")
+rmvsamples=vector()
+
+for(value in triplicate_cell_lines){
+
+cell_lines=subset(SDRF2, FactorValue..CELL.LINE. == value)
 
 cisplatin=subset(cell_lines, FactorValue..TREATMENT. == "cisplatin")
 cisn=row.names(cisplatin)
 
-cis_df = exp_palmieri[,c(cisn)]
+cis_df = exp_filtered[,c(cisn)]
 cisrown=row.names(cis_df)
-ciscoln=colnames(cis_df)
 cis_df=2^(cis_df)
 rmeans=rowMeans(cis_df)
 cis_df=cbind(cis_df, rmeans)
 cis_df[,"rmeans"]=log2(cis_df[,"rmeans"])
-
+cis_df[,1]=cis_df[,"rmeans"]
+ciscoln=colnames(cis_df)
+avgsamplen=(ciscoln[1])
+avgsample=cis_df[,1, drop=FALSE]
+avgsamplen
+Biobase::exprs(palmieri_manfiltered2)[,avgsamplen]=avgsample
+rmvsamples=c(rmvsamples, ciscoln[2:(length(ciscoln)-1)])
 
 control=subset(cell_lines, FactorValue..TREATMENT. == "none")
 contrn=row.names(control)
 
-contr_df = exp_palmieri[,c(contrn)]
+contr_df = exp_filtered[,c(contrn)]
 contrown=row.names(contr_df)
+contr_df=2^(contr_df)
+rmeans=rowMeans(contr_df)
+contr_df=cbind(contr_df, rmeans)
+contr_df[,"rmeans"]=log2(contr_df[,"rmeans"])
+contr_df[,1]=contr_df[,"rmeans"]
+contrcoln=colnames(contr_df)
+avgsamplen=(contrcoln[1])
+avgsample=contr_df[,1, drop=FALSE]
+avgsamplen
+Biobase::exprs(palmieri_manfiltered2)[,avgsamplen]=avgsample
+rmvsamples=c(rmvsamples, contrcoln[2:(length(contrcoln)-1)]) }
+
+#palmieri_manfiltered2 is the expression set with the averaged probes, still need to remove the rmvsamples from the expression set
+
+pr_rmv = colnames((Biobase::exprs(palmieri_manfiltered2))) %in% rmvsamples
+table(pr_rmv)
+
 
 
 
