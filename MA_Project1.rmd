@@ -1,0 +1,375 @@
+---
+title: "MA_Project1"
+author: "Pia Chouaifaty"
+date: "10/12/2020"
+output: html_document
+---
+
+```{r include=FALSE}
+knitr::opts_chunk$set(fig.width=8, fig.height=8)
+```
+
+# Project Description
+
+### Epithelial-mesenchymal status renders differential responses to cisplatin in ovarian cancer
+
+The data set used is from a paper studying the differences in gene expression in mesenchymal and epithelial cells following cisplatin treatment. 171 samples of various cell lines treated with cisplatin and negative controls were obtained. The aim is to analyze differential expression as a response to cisplatin treatment between mesenchymal and epithelial cells.
+
+Citation:  
+Miow, Q., Tan, T., Ye, J. et al. Epithelial–mesenchymal status renders differential responses to cisplatin in ovarian cancer. Oncogene 34, 1899–1907 (2015). https://doi.org/10.1038/onc.2014.136
+
+#Pipeline
+
+## 1 Libraries
+
+```{r libraries, echo=TRUE, message=FALSE, warning=FALSE}
+
+#General Bioconductor packages
+library(Biobase)
+library(oligoClasses)
+     
+#Annotation and data import packages
+library(ArrayExpress)
+library(pd.hugene.1.0.st.v1)
+library(hugene10sttranscriptcluster.db)
+     
+#Quality control and pre-processing packages
+library(oligo)
+library(arrayQualityMetrics)
+     
+#Analysis and statistics packages
+library(limma)
+library(topGO)
+library(ReactomePA)
+library(clusterProfiler)
+     
+#Plotting and color options packages
+library(gplots)
+library(ggplot2)
+library(geneplotter)
+library(RColorBrewer)
+library(pheatmap)
+     
+#Formatting/documentation packages
+   #library(rmarkdown)
+   #library(BiocStyle)
+library(dplyr)
+library(tidyr)
+
+#Helpers:
+library(stringr)
+library(matrixStats)
+library(genefilter)
+library(openxlsx)
+   #library(devtools)
+
+```
+
+## 2 Downloading the Raw & Processed Data From Array Express
+
+[ArrayExpress Experiment Link](https://www.ebi.ac.uk/arrayexpress/experiments/E-GEOD-47856/)  
+Accession number: E-GEOD-47856
+
+```{r}
+raw_data_dir = "/Users/piachouaifaty/bif425_fall20_chouaifaty_pia/MA_Pipeline_Project1/raw_data_files"
+if(!dir.exists(raw_data_dir)) {dir.create(raw_data_dir)}
+
+#anno_AE = getAE("E-GEOD-47856", path=raw_data_dir, type="raw")
+```
+
+
+```{r}
+processed_data_dir = "/Users/piachouaifaty/bif425_fall20_chouaifaty_pia/MA_Pipeline_Project1/processed_data"
+if(!dir.exists(processed_data_dir)) {dir.create(processed_data_dir)}
+
+#anno_AE = getAE("E-GEOD-47856", path=processed_data_dir, type="processed")
+```
+
+
+```{r}
+sdrf_location = file.path(raw_data_dir, "E-GEOD-47856.sdrf.txt")
+SDRF = read.delim(sdrf_location)
+rownames(SDRF) = SDRF$Array.Data.File
+```
+
+## 3 Appending EMT Classification to SDRF
+
+The authors supplied a list of cell lines that they found to be epithelial-like/mesenchymal-like in an additional experiment in the supplementary material.  
+In order to make it easier to separate based on cell line EMT status (mesenchymal vs epithelial) later on, I add a column to the SDRF matrix specifying EMT status before transforming it into an annotated data frame.  
+
+The sample_classification.xls file was extracted from the supplementary data provided by the paper. sample_class is a dataframe containing the sample cell line and its classification as either epithelial-like or mesenchymal-like.
+
+```{r}
+#install.packages("readxl")
+library(readxl)
+
+suppl_dir = "/Users/piachouaifaty/bif425_fall20_chouaifaty_pia/MA_Pipeline_Project1"
+EMT_location = file.path(suppl_dir, "sample_classification.xls")
+EMT_status = read_excel(EMT_location)
+```
+
+I now add the Classification column to the SDRF data frame.
+
+```{r}
+SDRF = left_join(SDRF, EMT_status, by = c("FactorValue..CELL.LINE." = "Sample"))
+rownames(SDRF) = SDRF$Array.Data.File
+SDRF2 = SDRF #for reference
+rownames(SDRF2) = SDRF2$Array.Data.File
+SDRF = AnnotatedDataFrame(SDRF)
+```
+
+Creating an ExpressionSet for the raw data
+
+```{r}
+raw_data = oligo::read.celfiles(filenames = file.path(raw_data_dir, SDRF$Array.Data.File), verbose = FALSE, phenoData = SDRF)
+stopifnot(validObject(raw_data))
+
+#processed_data = oligo::read.celfiles(filenames = file.path(processed_data_dir, SDRF$Derived.Array.Data.File), verbose = FALSE, phenoData = SDRF)
+#stopifnot(validObject(raw_data))
+```
+
+Taking a look at the raw data
+
+```{r}
+head(Biobase::pData(raw_data))
+```
+
+Retain only columns that we need:  
+1. Sample identifier (Source.Name)  
+2. Treatment or control (FactorValue..TREATMENT)  
+3. Cell line name (FactorValue..CELL.LINE.)
+4. Cell line EMT classification (Classification)  
+
+```{r}
+Biobase::pData(raw_data) = Biobase::pData(raw_data)[,c("Source.Name", "FactorValue..TREATMENT.", "FactorValue..CELL.LINE.", "Classification")]
+SDRF2 = SDRF2[,c("Source.Name", "FactorValue..TREATMENT.", "FactorValue..CELL.LINE.","Classification")]
+
+head(Biobase::pData(raw_data))
+```
+
+## 4 Log-Transformation & Visualization
+
+We take the log2 of the data, and plot the PCA to check if we have clustering based on cell line classification and/or treatment (cisplatin vs control).
+
+```{r}
+exp_raw = log2(Biobase::exprs(raw_data))
+```
+
+PCA Analysis & Plot
+
+```{r}
+PCA_raw <- prcomp(t(exp_raw), scale. = FALSE)
+
+percentVar <- round(100*PCA_raw$sdev^2/sum(PCA_raw$sdev^2),1)
+sd_ratio <- sqrt(percentVar[2] / percentVar[1])
+
+dataGG <- data.frame(PC1 = PCA_raw$x[,1], PC2 = PCA_raw$x[,2],
+                    EMT = pData(raw_data)$Classification,
+                    Treatment = pData(raw_data)$FactorValue..TREATMENT.,
+                    Source = pData(raw_data)$Source.Name)
+
+ggplot(dataGG, aes(PC1, PC2)) +
+      geom_point(aes(shape = EMT, colour = Treatment)) +
+  ggtitle("PCA plot of the log-transformed raw expression data") +
+  xlab(paste0("PC1, VarExp: ", percentVar[1], "%")) +
+  ylab(paste0("PC2, VarExp: ", percentVar[2], "%")) +
+  theme(plot.title = element_text(hjust = 0.5))+
+  coord_fixed(ratio = sd_ratio) +
+  scale_shape_manual(values = c(4,15)) + 
+  scale_color_manual(values = c("darkorange2", "dodgerblue4"))
+```
+
+There seems to be a clear clustering according to PC1 (48.7% variance, encompasses almost half the data). It seems that more epithelial-like cells are to the left while mesenchymal-like cells are to the right, but that will be clearer once we normalize and account for triplicate assays. 
+
+Boxplot
+
+```{r}
+oligo::boxplot(raw_data, target="core", main = "Boxplot of log-2 intensities for the raw data")
+```
+
+Raw data report
+
+```{r}
+arrayQualityMetrics(expressionset = raw_data,
+    outdir = raw_data_dir,
+    force = TRUE, do.logtransform = TRUE,
+    intgroup = c("FactorValue..TREATMENT.", "Classification"))
+```
+
+## 5 Background Adjustment, calibration, summarization and annotation
+
+### RLE (Relative Log Expression) data quality analysis
+
+#### Backround correction
+
+```{r}
+palmieri_eset = oligo::rma(raw_data, target="core", normalize=FALSE)
+```
+
+```{r}
+head(Biobase::exprs(palmieri_eset))
+```
+#### Plotting the RLE
+
+```{r}
+row_medians_assayData <- 
+  Biobase::rowMedians(as.matrix(Biobase::exprs(palmieri_eset)))
+
+RLE_data <- sweep(Biobase::exprs(palmieri_eset), 1, row_medians_assayData)
+
+RLE_data <- as.data.frame(RLE_data)
+RLE_data_gathered <- 
+  tidyr::gather(RLE_data, patient_array, log2_expression_deviation)
+
+#ylim is the ylimit of the x-axis
+
+ggplot2::ggplot(RLE_data_gathered, aes(patient_array,
+                                       log2_expression_deviation)) + 
+  geom_boxplot(outlier.shape = NA) + 
+  ylim(c(-2, 2)) + 
+  theme(axis.text.x = element_text(colour = "aquamarine4", 
+                                  angle = 60, size = 6.5, hjust = 1 ,
+                                  face = "bold"))
+```
+
+The above plot shows the probe intensity per chip variation with respect to median intensities
+We can see a couple of outliers to the left and a few to the right
+Very large variances exist in the data (unexpected)
+
+#### RMA Calibration
+
+In the original paper, they used the RMA algorithm to calibrate the data
+
+```{r}
+palmieri_eset_norm <- oligo::rma(raw_data, target = "core")
+```
+
+#### Comparing my normalized expression values with the original paper's
+
+I join all the processed data into one matrix to easily compare it with my resulting expression values:
+
+```{r}
+for(row in 1:nrow(SDRF))
+{processedfilenames=c(SDRF$Derived.Array.Data.File)}
+
+samplepro = read.delim(file.path(processed_data_dir, processedfilenames[1]))
+colnames(samplepro)=(c("ID_REF", processedfilenames[1]))
+
+for(value in processedfilenames)
+{
+  processed_location = file.path(processed_data_dir, value)
+  m=read.delim(processed_location)
+  colnames(m)=(c("ID_REF", value))
+  samplepro = left_join(samplepro, m)
+}
+
+rownames(samplepro)=c(samplepro$ID_REF)
+
+
+head(samplepro)
+```
+
+
+```{r}
+head(Biobase::exprs(palmieri_eset_norm))
+```
+
+So far the processed data from the original paper and the pipeline's data after normalization are very similar. However, there seems to be around a 1-unit difference [~0.8-1.20] between the two. In the paper, the authors stated having standardized the expression values using ComBat to remove the batch effect after running RMA, so that may be the cause of this discrepancy.
+
+#### PCA After Normalization
+
+```{r}
+exp_palmieri <- Biobase::exprs(palmieri_eset_norm) 
+PCA <- prcomp(t(exp_palmieri), scale = FALSE)
+
+percentVar <- round(100*PCA$sdev^2/sum(PCA$sdev^2),1)
+sd_ratio <- sqrt(percentVar[2] / percentVar[1])
+
+dataGG <- data.frame(PC1 = PCA$x[,1], PC2 = PCA$x[,2],
+                    EMT = pData(raw_data)$Classification,
+                    Treatment = pData(raw_data)$FactorValue..TREATMENT.,
+                    Source = pData(raw_data)$Source.Name)
+
+
+ggplot(dataGG, aes(PC1, PC2)) +
+      geom_point(aes(shape = EMT, colour = Treatment)) +
+  ggtitle("PCA plot of the calibrated, summarized data") +
+  xlab(paste0("PC1, VarExp: ", percentVar[1], "%")) +
+  ylab(paste0("PC2, VarExp: ", percentVar[2], "%")) +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  coord_fixed(ratio = sd_ratio) +
+  scale_shape_manual(values = c(4,15)) + 
+  scale_color_manual(values = c("darkorange2", "dodgerblue4"))
+```
+
+#### Triplicate Values & Filtering Based on Variance
+
+The cell lines for which there are more than 2 assays (cisplatin/control) are the following: A2008, A2780, C13, CH1, DOV13, DOV13B, FU-OV-1, HeyA8, HeyC2, IGROV-1, OV90, OVCA420, OVCA429, OVCA433, OVCAR-10, OVCAR-8, PA-1, TYK-nu.  
+
+The authors stated that they took advantage of the triplicate data by removing potentially fragile probes with strong variations (sd>0.2) within the triplicates from the data, decreasing the total probe number from 33297 to 21329. -> 11968 probes removed
+
+After trying it several times, and because the paper was unclear on whether it used log-transformed values or not for this step, and also because of the additional step the authors performed after RMA, I decided to go with variance>0.28 as a cutoff to get a comparable number of probe removals and not remove too many probes that may be significant.
+
+```{r}
+
+triplicate_cell_lines = c("A2008", "A2780", "C13", "CH1", "DOV13", "DOV13B", "FU-OV-1", "HeyA8", "HeyC2", "IGROV-1", "OV90", "OVCA420", "OVCA429", "OVCA433", "OVCAR-10", "OVCAR-8", "PA-1", "TYK-nu")
+
+probes = vector()
+
+for(value in triplicate_cell_lines)
+{cell_lines=subset(SDRF2, FactorValue..CELL.LINE. == value)
+
+cisplatin=subset(cell_lines, FactorValue..TREATMENT. == "cisplatin")
+cisn=row.names(cisplatin)
+
+cis_df = exp_palmieri[,c(cisn)]
+cisrown=row.names(cis_df)
+for(r in 1:nrow(cis_df))
+{
+  stddev=sd(cis_df[r,])
+  if ((stddev*stddev)>0.28)
+    {probes=c(probes, cisrown[r])}
+}
+
+control=subset(cell_lines, FactorValue..TREATMENT. == "none")
+contrn=row.names(control)
+
+contr_df = exp_palmieri[,c(contrn)]
+contrown=row.names(contr_df)
+for(r in 1:nrow(contr_df))
+{
+  stddev=sd(cis_df[r,])
+  if ((stddev*stddev)>0.28)
+    {probes=c(probes, contrown[r])}
+}}
+
+#probes to be removed
+probes=unique(probes)
+```
+
+Below is the number of probes that will be removed.
+
+```{r}
+length(probes)
+```
+
+We then remove these probes from the expression set
+
+```{r}
+pr_rmv = rownames((Biobase::exprs(palmieri_eset_norm))) %in% probes
+table(pr_rmv)
+pr_rmv
+```
+
+
+```{r}
+#need to keep the false values and remove the true ones
+pr_rmv=!pr_rmv
+table(pr_rmv)
+palmieri_manfiltered <- subset(palmieri_eset_norm, pr_rmv)
+head(Biobase::exprs(palmieri_manfiltered))
+```
+
+
+
+
