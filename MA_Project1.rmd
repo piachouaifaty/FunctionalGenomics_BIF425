@@ -473,54 +473,87 @@ avgsamplen
 Biobase::exprs(palmieri_manfiltered2)[,avgsamplen]=avgsample
 rmvsamples=c(rmvsamples, contrcoln[2:(length(contrcoln)-1)]) }
 
+
 #palmieri_manfiltered2 is the expression set with the averaged probes, still need to remove the rmvsamples from the expression set
 
-pr_rmv = colnames((Biobase::exprs(palmieri_manfiltered2))) %in% rmvsamples
-table(pr_rmv)
+totalsamples=colnames(Biobase::exprs(palmieri_manfiltered2))
+keepsamples = totalsamples[! totalsamples %in% rmvsamples]
 
-
-
-
+palmieri_f = palmieri_manfiltered2[,keepsamples]
 ```
 
+#### Annotation of the transcript clusters
 
 ```{r}
+anno_palmieri <- AnnotationDbi::select(hugene10sttranscriptcluster.db,
+                                  keys = (featureNames(palmieri_f)),
+                                  columns = c("SYMBOL", "GENENAME"),
+                                  keytype = "PROBEID")
 
+anno_palmieri <- subset(anno_palmieri, !is.na(SYMBOL))
 
-newsamples = vector()
-
-for(value in triplicate_cell_lines)
-{cell_lines=subset(SDRF2, FactorValue..CELL.LINE. == value)
-
-cisplatin=subset(cell_lines, FactorValue..TREATMENT. == "cisplatin")
-cisn=row.names(cisplatin)
-
-cis_df = exp_palmieri[,c(cisn)]
-cisrown=row.names(cis_df)
-for(r in 1:nrow(cis_df))
-{
-  stddev=sd(cis_df[r,])
-  if ((stddev*stddev)>0.28)
-    {probes=c(probes, cisrown[r])}
-}
-
-control=subset(cell_lines, FactorValue..TREATMENT. == "none")
-contrn=row.names(control)
-
-contr_df = exp_palmieri[,c(contrn)]
-contrown=row.names(contr_df)
-for(r in 1:nrow(contr_df))
-{
-  stddev=sd(cis_df[r,])
-  if ((stddev*stddev)>0.28)
-    {probes=c(probes, contrown[r])}
-}}
-
-#probes to be removed
-probes=unique(probes)
 ```
 
+```{r}
+anno_grouped <- group_by(anno_palmieri, PROBEID)
+anno_summarized <- 
+  dplyr::summarize(anno_grouped, no_of_matches = n_distinct(SYMBOL))
 
+head(anno_summarized)
+```
 
+```{r}
+anno_filtered <- filter(anno_summarized, no_of_matches > 1)
 
+head(anno_filtered)
+```
+
+```{r}
+probe_stats <- anno_filtered 
+
+nrow(probe_stats)
+```
+
+1682 probes map to multiple genes
+
+```{r}
+ids_to_exlude <- (featureNames(palmieri_f) %in% probe_stats$PROBEID)
+# returns a true or false vector based on whether the probes have multiple matches or not
+# ids to exclude are those that return true
+table(ids_to_exlude)
+```
+
+```{r}
+palmieri_final <- subset(palmieri_f, ids_to_exlude)
+
+validObject(palmieri_final)
+```
+
+As we have just excluded probe IDs from the assay data, we now have to also exclude them from the feature data anno_palmieri:
+
+```{r}
+head(anno_palmieri)
+```
+
+Recall that fData enables us to access the feature data of an expression set. Until now, no feature data whatsoever is stored in the fData(palmieri_final). Only the row names are the row names of the assay data by default, which are the PROBEIDs of the transcripts.  
+
+Therefore, we generate a column PROBEID in fData(palmieri_final) and assign the row names of fData(palmieri_final) to it:  
+
+```{r}
+fData(palmieri_final)$PROBEID <- rownames(fData(palmieri_final))
+```
+
+Then, we left-join fData(palmieri_final)with anno_palmieri, which already contains the columns “SYMBOL” and “GENENAME”. A left-join keeps the rows and columns of the first argument and adds the corresponding column entries of the second argument:
+
+```{r}
+fData(palmieri_final) <- left_join(fData(palmieri_final), anno_palmieri)
+
+```
+
+```{r}
+#restore rownames after left_join
+rownames(fData(palmieri_final)) <- fData(palmieri_final)$PROBEID 
+    
+validObject(palmieri_final)
+```
 
