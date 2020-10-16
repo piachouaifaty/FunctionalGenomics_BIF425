@@ -141,7 +141,7 @@ Retain only columns that we need:
 Biobase::pData(raw_data) = Biobase::pData(raw_data)[,c("Source.Name", "FactorValue..TREATMENT.", "FactorValue..CELL.LINE.", "Classification")]
 SDRF2 = SDRF2[,c("Source.Name", "FactorValue..TREATMENT.", "FactorValue..CELL.LINE.","Classification")]
 
-head(Biobase::pData(raw_data))
+#head(Biobase::pData(raw_data))
 ```
 
 ## 4 Log-Transformation & Visualization
@@ -204,7 +204,7 @@ palmieri_eset = oligo::rma(raw_data, target="core", normalize=FALSE)
 ```
 
 ```{r}
-Biobase::exprs(palmieri_eset)
+#Biobase::exprs(palmieri_eset)
 ```
 
 #### Plotting the RLE
@@ -362,6 +362,8 @@ ggplot(dataGG, aes(PC1, PC2)) +
   scale_color_manual(values = c("darkorange2", "dodgerblue4"))
 ```
 
+The PCA now shows 5 clusters. According to the SDRF file, the experiment was done in 5 batches. The 5 clusters are probably due to the batch effect that has not been removed here.
+
 #### Triplicate Values & Filtering Based on Variance
 
 The cell lines for which there are more than 2 assays (cisplatin/control) are the following: A2008, A2780, C13, CH1, DOV13, DOV13B, FU-OV-1, HeyA8, HeyC2, IGROV-1, OV90, OVCA420, OVCA429, OVCA433, OVCAR-10, OVCAR-8, PA-1, TYK-nu, SKOV-3.  
@@ -405,7 +407,7 @@ for(r in 1:nrow(contr_df))
 
 #probes to be removed
 probes=unique(probes)
-probes
+#probes
 ```
 
 Below is the number of probes that will be removed.
@@ -419,7 +421,7 @@ We then remove these probes from the expression set
 ```{r}
 pr_rmv = rownames((Biobase::exprs(palmieri_eset_norm))) %in% probes
 table(pr_rmv)
-pr_rmv
+#pr_rmv
 ```
 
 
@@ -428,15 +430,11 @@ pr_rmv
 pr_rmv=!pr_rmv
 table(pr_rmv)
 palmieri_manfiltered <- subset(palmieri_eset_norm, pr_rmv)
-Biobase::pData(palmieri_manfiltered)
+#Biobase::pData(palmieri_manfiltered)
 ```
 
 ```{r}
-head(Biobase::exprs(palmieri_manfiltered))
-```
-
-```{r}
-#rownames(Biobase::exprs(raw_data)) = raw_probes
+#head(Biobase::exprs(palmieri_manfiltered))
 ```
 
 
@@ -493,7 +491,7 @@ rmvsamples=c(rmvsamples, contrcoln[2:(length(contrcoln)-1)])
 rmvsamples=c(rmvsamples, "GSM1160879_SMhu172.CEL")
 #palmieri_manfiltered2 is the expression set with the averaged probes, still need to remove the rmvsamples from the expression set
 
-rmvsamples
+#rmvsamples
 length(rmvsamples)
 
 ```
@@ -503,18 +501,18 @@ length(rmvsamples)
 ```{r}
 totalsamples=colnames(Biobase::exprs(palmieri_manfiltered2))
 keepsamples = totalsamples[! (totalsamples %in% rmvsamples)]
-keepsamples
+#keepsamples
 length(keepsamples)
 ```
 
 
 ```{r}
 palmieri_f = palmieri_manfiltered2[,keepsamples]
-head(Biobase::exprs(palmieri_f))
+#head(Biobase::exprs(palmieri_f))
 ```
 
 ```{r}
-Biobase::pData(palmieri_f)
+#Biobase::pData(palmieri_f)
 ```
 
 
@@ -594,11 +592,11 @@ validObject(palmieri_final)
 ```
 
 ```{r}
-head(Biobase::pData(palmieri_final))
+#head(Biobase::pData(palmieri_final))
 ```
 
 ```{r}
-head(Biobase::exprs(palmieri_final))
+#head(Biobase::exprs(palmieri_final))
 ```
 
 
@@ -609,11 +607,11 @@ To detect differential responses to cisplatin between epithelial and mesenchymal
 ```{r}
 SDRF_f = Biobase::pData(palmieri_final)
 expr_f = Biobase::exprs(palmieri_final)
-SDRF_f
+#SDRF_f
 ```
 
 ```{r}
-head(expr_f)
+#head(expr_f)
 ```
 
 
@@ -666,7 +664,8 @@ expr_f = Biobase::exprs(palmieri_d)
 Mann-Whitney U-test was used to detect the differential transcriptomic responses between the expression changes by cisplatin treatment in epithelial-like cell line with those in mesenchymal-like cell lines with a cutoff value of P<0.01.  
 
 After checking the results table provided by the authors, I find the maximum p-value of the genes they considered to be differentially expressed, and find it to be 0.009  
-So a cutoff p-value of 0.01 seems reasonable
+So a cutoff p-value of 0.01 seems reasonable  
+
 ```{r}
 loc = file.path(suppl_dir, "differentially_expressed_genes.xls")
 diffgenes_paper = read_excel(loc)
@@ -677,6 +676,8 @@ max(diffgenes_paper[,"MW.pv"])
 
 #### Performing the U-Test
 
+Testing the code on a random gene
+In the authors' results, the gene 8144516 has a p-value of 0.0000699600255807229 while here it has a p-value of 0.0006500818, which could also be due to the batch effect that the authors accounted for in their paper, while I did not here.
 
 ```{r}
 genelist=rownames(expr_f)
@@ -691,33 +692,39 @@ t["p.value"]
 
 ```
 
-```{r}
-pvals <- data.frame(Probe=integer(), pvalue=double())
+Generating the matrix of p-values:
 
+```{r}
 genelist=rownames(expr_f)
 epi_samples = rownames(subset(SDRF_f, SDRF_f[,"Classification"]=="Epithelial-like"))
 mes_samples = rownames(subset(SDRF_f, SDRF_f[,"Classification"]=="Mesenchymal-like"))
-for(value in genelist)
-{ epi_values = expr_f[value, epi_samples, drop=FALSE]
+
+pval_mtrx <- data.frame()  
+
+for (value in genelist){
+epi_values = expr_f[value, epi_samples, drop=FALSE]
 mes_values = expr_f[value, mes_samples, drop=FALSE]
 
-t=wilcox.test(mes_values, epi_values, paired=FALSE)
-p=t["p.value"]
-df = c(value, p)
-pvals=rbind(pvals, df)
+t = wilcox.test(mes_values, epi_values, paired=FALSE)
+wpv = t["p.value"]
+v = value
+vals=cbind(v, wpv)
+pval_mtrx=rbind(pval_mtrx, vals)
 }
+
 ```
 
 ```{r}
-genelist=rownames(expr_f)
-#diffexpaper
-genelist
-#diffexpaper
-#samess = diffexpaper %in% genelist
+num=(which(pvals<=0.01))
+length(num)
+```
 
-#samess
+I get 301 differentially expressed genes. The paper finds 480.  
+
+```{r}
 
 ```
+
 
 
 
