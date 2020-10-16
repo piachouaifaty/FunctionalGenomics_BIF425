@@ -359,7 +359,7 @@ ggplot(dataGG, aes(PC1, PC2)) +
 
 #### Triplicate Values & Filtering Based on Variance
 
-The cell lines for which there are more than 2 assays (cisplatin/control) are the following: A2008, A2780, C13, CH1, DOV13, DOV13B, FU-OV-1, HeyA8, HeyC2, IGROV-1, OV90, OVCA420, OVCA429, OVCA433, OVCAR-10, OVCAR-8, PA-1, TYK-nu.  
+The cell lines for which there are more than 2 assays (cisplatin/control) are the following: A2008, A2780, C13, CH1, DOV13, DOV13B, FU-OV-1, HeyA8, HeyC2, IGROV-1, OV90, OVCA420, OVCA429, OVCA433, OVCAR-10, OVCAR-8, PA-1, TYK-nu, SKOV-3.  
 
 The authors stated that they took advantage of the triplicate data by removing potentially fragile probes with strong variations (sd>0.2) within the triplicates from the data, decreasing the total probe number from 33297 to 21329. -> 11968 probes removed
 
@@ -406,6 +406,7 @@ Below is the number of probes that will be removed.
 
 ```{r}
 length(probes)
+probes
 ```
 
 We then remove these probes from the expression set
@@ -431,7 +432,7 @@ Next, the authors log-average the triplicate data into one value. We cannot aver
 palmieri_manfiltered2=palmieri_manfiltered
 exp_filtered = Biobase::exprs(palmieri_manfiltered2)
 
-triplicate_cell_lines = c("A2008", "A2780", "C13", "CH1", "DOV13", "DOV13B", "FU-OV-1", "HeyA8", "HeyC2", "IGROV-1", "OV90", "OVCA420", "OVCA429", "OVCA433", "OVCAR-10", "OVCAR-8", "PA-1", "TYK-nu")
+triplicate_cell_lines = c("A2008", "A2780", "C13", "CH1", "DOV13", "DOV13B", "FU-OV-1", "HeyA8", "HeyC2", "IGROV-1", "OV90", "OVCA420", "OVCA429", "OVCA433", "OVCAR-10", "OVCAR-8", "PA-1", "TYK-nu" )
 
 rmvsamples=vector()
 
@@ -462,7 +463,7 @@ contrn=row.names(control)
 contr_df = exp_filtered[,c(contrn)]
 contrown=row.names(contr_df)
 contr_df=2^(contr_df)
-rmeans=rowMeans(contr_df)
+rmeans=rowMeans(cis_df)
 contr_df=cbind(contr_df, rmeans)
 contr_df[,"rmeans"]=log2(contr_df[,"rmeans"])
 contr_df[,1]=contr_df[,"rmeans"]
@@ -473,14 +474,31 @@ avgsamplen
 Biobase::exprs(palmieri_manfiltered2)[,avgsamplen]=avgsample
 rmvsamples=c(rmvsamples, contrcoln[2:(length(contrcoln)-1)]) }
 
+rmvsamples=c(rmvsamples, "GSM1160879_SMhu172.CEL")
 
 #palmieri_manfiltered2 is the expression set with the averaged probes, still need to remove the rmvsamples from the expression set
 
+rmvsamples
+
+```
+
+
+```{r}
 totalsamples=colnames(Biobase::exprs(palmieri_manfiltered2))
 keepsamples = totalsamples[! totalsamples %in% rmvsamples]
-
-palmieri_f = palmieri_manfiltered2[,keepsamples]
+keepsamples
 ```
+
+
+```{r}
+palmieri_f = palmieri_manfiltered2[,keepsamples]
+head(Biobase::exprs(palmieri_f))
+```
+
+```{r}
+Biobase::pData(palmieri_f)
+```
+
 
 #### Annotation of the transcript clusters
 
@@ -524,7 +542,7 @@ table(ids_to_exlude)
 ```
 
 ```{r}
-palmieri_final <- subset(palmieri_f, ids_to_exlude)
+palmieri_final <- subset(palmieri_f, !ids_to_exlude)
 
 validObject(palmieri_final)
 ```
@@ -556,4 +574,65 @@ rownames(fData(palmieri_final)) <- fData(palmieri_final)$PROBEID
     
 validObject(palmieri_final)
 ```
+
+#### Getting the cisplatin-induced response of both types of cells
+
+To detect differential responses to cisplatin between epithelial and mesenchymal-like cell lines, the transcriptomic responses to cisplatin were computed by subtracting the gene expression value of control (untreated) from that of cisplatin-treated cells.
+
+```{r}
+SDRF_f = Biobase::pData(palmieri_final)
+expr_f = Biobase::exprs(palmieri_final)
+head(SDRF_f)
+```
+
+```{r}
+head(expr_f)
+```
+
+
+```{r}
+palmieri_diff = palmieri_final
+SDRF_f = Biobase::pData(palmieri_diff)
+expr_f = Biobase::exprs(palmieri_diff)
+
+cell_line_names = unique(SDRF_f[,"FactorValue..CELL.LINE."])
+length(cell_line_names)
+```
+```{r}
+
+keep=vector()
+for(value in cell_line_names){
+cell_lines=subset(SDRF_f, FactorValue..CELL.LINE. == value)
+
+cisplatin=subset(cell_lines, FactorValue..TREATMENT. == "cisplatin")
+cisn=rownames(cisplatin)
+cis_df = expr_f[,c(cisn), drop=FALSE]
+
+control=subset(cell_lines, FactorValue..TREATMENT. == "none")
+contrn=row.names(control)
+contr_df = expr_f[,c(contrn), drop=FALSE]
+
+cis_df=cis_df-contr_df
+Biobase::exprs(palmieri_diff)[,cisn]=cis_df
+
+keep=c(keep, cisn)}
+
+length(keep)
+```
+
+```{r}
+palmieri_d = palmieri_diff[,keep]
+palmieri_d
+```
+
+palmieri_d is an expression set that contains only the difference in expression sets for each of the 46 cell lines.
+
+```{r}
+SDRF_f = Biobase::pData(palmieri_d)
+expr_f = Biobase::exprs(palmieri_d)
+```
+
+#### Statistical Analysis
+
+
 
