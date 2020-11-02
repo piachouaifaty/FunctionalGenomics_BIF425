@@ -13,7 +13,7 @@ do
   lngth=$(sed -n "${i}p" $1 | wc) #get sequence length
   if [[$lngth=$2]]; #if sequence length is equal to specified length
   then count=$count+1 #increment count
-        let sc=$i+1 #the index for the sequence's QS
+        let sc=$i+2 #the index for the sequence's QS
         declare a- seq_v=(sed "${sc}q;d" $1 | od -An -t d1) #QS values for each nucleotide
         sum=$(IFS=+; echo "$((${seq_v[*]}))") #sum of QS values for this sequence
         avg=$((${sum}/${lngth}))
