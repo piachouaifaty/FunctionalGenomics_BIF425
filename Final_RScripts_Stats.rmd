@@ -6,3 +6,4 @@ output: html_document
 ---
 
 Here I write the scripts for the statistics and test them on small fastq, sam and vcf files.
+
