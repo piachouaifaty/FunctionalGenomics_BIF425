@@ -62,9 +62,30 @@ MINLEN:36
 ##SLIDINGWINDOW: Window size of 4 (BASES) minimum mean quality in window=20 since the reads are of good quality
 ##MINLEN: discard sequences that are smaller than 36 base pairs after the other trimming operations.
 
+#Trimmomatic Output
+Input Read Pairs: 30895087
+Both Surviving: 30320928 (98.14%)
+Forward Only Surviving: 0 (0.00%)
+Reverse Only Surviving: 0 (0.00%)
+Dropped: 574159 (1.86%)
+TrimmomaticPE: Completed successfully
+
+#FastQC Post-Trim
+fastqc -o PostTrim_FastQCResults 392_1_trimmed_R1_paired.fastq.gz 392_2_trimmed_R2_paired.fastq.gz
+
 #BWA
 
 #Indexing
 bwa index -p chr13bwaidx -a bwtsw chr13.fa
 #-p filename, by convention genome|algo|idx
 #-a index algo (bwtsw for long genomes and is for short ones)
+
+#Output:
+[bwt_gen] Finished constructing BWT in 72 iterations.
+[bwa_index] 110.82 seconds elapse.
+[bwa_index] Update BWT... 0.71 sec
+[bwa_index] Pack forward-only FASTA... 0.81 sec
+[bwa_index] Construct SA from BWT and Occ... 32.72 sec
+[main] Version: 0.7.17-r1188
+[main] CMD: bwa index -p chr13bwaidx -a bwtsw chr13.fa
+[main] Real time: 146.446 sec; CPU: 146.302 sec
