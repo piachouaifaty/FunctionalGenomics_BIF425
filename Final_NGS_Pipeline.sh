@@ -92,13 +92,40 @@ bwa index -p chr13bwaidx -a bwtsw chr13.fa
 [main] CMD: bwa index -p chr13bwaidx -a bwtsw chr13.fa
 [main] Real time: 146.446 sec; CPU: 146.302 sec
 
+
+#READ GROUP
+@RG\tID:rg1\tSM:392\tPL:ILLUMINA\tLB:lib1\t:PU:HNLHYDSXX:1:GCCGGACA+TGTAAGAG
+
+#ID = Read group identifier
+
+#PU = Platform Unit
+#The PU holds three types of information, the {FLOWCELL_BARCODE}.{LANE}.{SAMPLE_BARCODE}.
+#The {FLOWCELL_BARCODE} refers to the unique identifier for a particular flow cell.
+#The {LANE} indicates the lane of the flow cell and the {SAMPLE_BARCODE} is a sample/library-specific identifier.
+#Although the PU is not required by GATK but takes precedence over ID for base recalibration if it is present.
+#In the example shown earlier, two read group fields, ID and PU, appropriately differentiate flow cell lane, marked by .2,
+#a factor that contributes to batch effects.
+
+#SM = Sample
+#The name of the sample sequenced in this read group. GATK tools treat all read groups with the same SM value as containing
+#sequencing data for the same sample, and this is also the name that will be used for the sample column in the VCF file.
+#Therefore it is critical that the SM field be specified correctly.
+#When sequencing pools of samples, use a pool name instead of an individual sample name.
+
+#PL = Platform/technology used to produce the read
+#This constitutes the only way to know what sequencing technology was used to generate the sequencing data.
+#Valid values: ILLUMINA, SOLID, LS454, HELICOS and PACBIO.
+
+#LB = DNA preparation library identifier
+#MarkDuplicates uses the LB field to determine which read groups might contain molecular duplicates,
+#in case the same DNA library was sequenced on multiple lanes.
+
 #MAPPING
-#16 threads on server
-#specify paths
 bwa mem -t 16 \
+-R '@RG\tID:rg1\tSM:392\tPL:ILLUMINA\tLB:lib1\t:PU:HNLHYDSXX:1:GCCGGACA+TGTAAGAG' \
 /ref_chrom/chr13bwaidx \ #index file path #full path better
 392_1_trimmed_R1_paired.fastq.gz  \ #file 1
 392_2_trimmed_R2_paired.fastq.gz \ #file 2
 > 392_aln.sam #redirect output to sam file
 
-bwa mem -t 16 ref_chrom/chr13bwaidx 392_1_trimmed_R1_paired.fastq.gz 392_2_trimmed_R2_paired.fastq.gz > 392_aln.sam
+bwa mem -t 16 -R '@RG\tID:rg1\tSM:392\tPL:ILLUMINA\tLB:lib1\t:PU:HNLHYDSXX:1:GCCGGACA+TGTAAGAG' ref_chrom/chr13bwaidx 392_1_trimmed_R1_paired.fastq.gz 392_2_trimmed_R2_paired.fastq.gz > 392_aln.sam
