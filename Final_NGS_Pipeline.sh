@@ -163,3 +163,23 @@ Tool returned:
 Runtime.totalMemory()=14134280192
 Tool returned:
 0
+
+#checking duplicates (possible only after MarkDuplicates)
+samtools view -f 0x400 392_dedup.bam
+
+#to count them without printing them
+samtools view -c -f 0x400 392_dedup.bam
+934746
+
+#Realignment, need an index file and a dictionary file
+
+/mnt/gkhazen/NGS-Fall2020/gatk-4.1.9.0/gatk CreateSequenceDictionary \
+R=ref_chrom/chr13.fa \
+O=ref_chrom/chr13.dict
+
+/mnt/gkhazen/NGS-Fall2020/gatk-4.1.9.0/gatk CreateSequenceDictionary R=ref_chrom/chr13.fa O=ref_chrom/chr13.dict
+
+[Mon Dec 14 22:14:21 EET 2020] picard.sam.CreateSequenceDictionary done. Elapsed time: 0.03 minutes.
+Runtime.totalMemory()=2084569088
+Tool returned:
+0
