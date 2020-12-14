@@ -129,3 +129,11 @@ bwa mem -t 16 \
 > 392_aln.sam #redirect output to sam file
 
 bwa mem -t 16 -R '@RG\tID:rg1\tSM:392\tPL:ILLUMINA\tLB:lib1\t:PU:HNLHYDSXX:1:GCCGGACA+TGTAAGAG' ref_chrom/chr13bwaidx 392_1_trimmed_R1_paired.fastq.gz 392_2_trimmed_R2_paired.fastq.gz > 392_aln.sam
+
+Processed 429766 reads in 120.953 CPU sec, 7.628 real sec
+[main] Version: 0.7.17-r1188
+[main] CMD: bwa mem -t 16 -R @RG\tID:rg1\tSM:392\tPL:ILLUMINA\tLB:lib1\t:PU:HNLHYDSXX:1:GCCGGACA+TGTAAGAG ref_chrom/chr13bwaidx 392_1_trimmed_R1_paired.fastq.gz 392_2_trimmed_R2_paired.fastq.gz
+[main] Real time: 1084.125 sec; CPU: 17303.121 sec
+
+#Cleaning up and converting sam to bam
+samtools fixmate -O bam 392_aln.sam 392_aln.bam
