@@ -137,3 +137,13 @@ Processed 429766 reads in 120.953 CPU sec, 7.628 real sec
 
 #Cleaning up and converting sam to bam
 samtools fixmate -O bam 392_aln.sam 392_aln.bam
+
+#GATK
+#Validating
+/mnt/gkhazen/NGS-Fall2020/gatk-4.1.9.0/gatk --java-options "-Xmx16g" ValidateSamFile INPUT=392_aln.bam MODE=SUMMARY
+
+No errors found
+[Mon Dec 14 20:32:42 EET 2020] picard.sam.ValidateSamFile done. Elapsed time: 5.01 minutes.
+Runtime.totalMemory()=2985820160
+Tool returned:
+0
