@@ -61,3 +61,10 @@ MINLEN:36
 ##Trailing/leading 3: minimum quality required to keep a leading 5’ or trailing 3’ base
 ##SLIDINGWINDOW: Window size of 4 (BASES) minimum mean quality in window=20 since the reads are of good quality
 ##MINLEN: discard sequences that are smaller than 36 base pairs after the other trimming operations.
+
+#BWA
+
+#Indexing
+bwa index -p chr13bwaidx -a bwtsw chr13.fa
+#-p filename, by convention genome|algo|idx
+#-a index algo (bwtsw for long genomes and is for short ones)
