@@ -147,3 +147,19 @@ No errors found
 Runtime.totalMemory()=2985820160
 Tool returned:
 0
+
+#Sorting the SAM file
+/mnt/gkhazen/NGS-Fall2020/gatk-4.1.9.0/gatk --java-options "-Xmx16g" SortSam INPUT=392_aln.bam OUTPUT=392_sorted.bam SORT_ORDER=coordinate
+
+[Mon Dec 14 21:41:00 EET 2020] picard.sam.SortSam done. Elapsed time: 8.33 minutes.
+Runtime.totalMemory()=6858735616
+Tool returned:
+0
+
+#Marking duplicates
+/mnt/gkhazen/NGS-Fall2020/gatk-4.1.9.0/gatk --java-options "-Xmx16g" MarkDuplicates INPUT=392_sorted.bam OUTPUT=392_dedup.bam METRICS_FILE=392.metrics
+
+[Mon Dec 14 21:52:24 EET 2020] picard.sam.markduplicates.MarkDuplicates done. Elapsed time: 6.75 minutes.
+Runtime.totalMemory()=14134280192
+Tool returned:
+0
