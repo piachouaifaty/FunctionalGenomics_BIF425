@@ -42,7 +42,7 @@ java -jar NGS/trim/Trimmomatic-0.39/trimmomatic-0.39.jar PE \
 ./FunctionalFinalProject/392_1_trimmed_R1_unpaired.fastq.gz \
 ./FunctionalFinalProject/392_2_trimmed_R2_paired.fastq.gz \
 ./FunctionalFinalProject/392_2_trimmed_R2_unpaired.fastq.gz \
-ILLUMINACLIP:NGS/trim/Trimmomatic-0.39/adapters/TruSeq2-PE.fa:2:30:10 \
+ILLUMINACLIP:NGS/trim/Trimmomatic-0.39/adapters/TruSeq3-PE-2.fa:2:30:10 \
 LEADING:3 \
 TRAILING:3 \
 SLIDINGWINDOW:4:20 \
@@ -54,7 +54,7 @@ MINLEN:36
 ##trimlog: the log (errors saved there)
 ## r1raw r2raw r1paired r1unpaired r2paired r2unpaired
 ##Illuminaclip: location of the file with the adapters
-#TruSeq2-PE.fa:2:30:10
+#TruSeq3-PE-2.fa:2:30:10
 #we allow 2 mismatches to the adapter sequence
 #30 is for the palidrome clip threshold used only in PE
 #require a score of at least 10 for alignment between adapter and read
@@ -73,6 +73,8 @@ TrimmomaticPE: Completed successfully
 #FastQC Post-Trim
 fastqc -o PostTrim_FastQCResults 392_1_trimmed_R1_paired.fastq.gz 392_2_trimmed_R2_paired.fastq.gz
 
+scp -r pia.chouaifaty@linuxdev.accbyblos.lau.edu.lb:FunctionalFinalProject/PostTrim_FastQCResults /Users/piachouaifaty
+
 #BWA
 
 #Indexing
@@ -89,3 +91,14 @@ bwa index -p chr13bwaidx -a bwtsw chr13.fa
 [main] Version: 0.7.17-r1188
 [main] CMD: bwa index -p chr13bwaidx -a bwtsw chr13.fa
 [main] Real time: 146.446 sec; CPU: 146.302 sec
+
+#MAPPING
+#16 threads on server
+#specify paths
+bwa mem -t 16 \
+/ref_chrom/chr13bwaidx \ #index file path #full path better
+392_1_trimmed_R1_paired.fastq.gz  \ #file 1
+392_2_trimmed_R2_paired.fastq.gz \ #file 2
+> 392_aln.sam #redirect output to sam file
+
+bwa mem -t 16 ref_chrom/chr13bwaidx 392_1_trimmed_R1_paired.fastq.gz 392_2_trimmed_R2_paired.fastq.gz > 392_aln.sam
