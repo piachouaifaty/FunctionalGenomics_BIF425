@@ -193,3 +193,96 @@ samtools faidx ref_chrom/chr13.fa
 -O recal_data.table
 
 /mnt/gkhazen/NGS-Fall2020/gatk-4.1.9.0/gatk BaseRecalibrator -I 392_dedup.bam -R ref_chrom/chr13.fa --known-sites /mnt/NGSdata/snpdb151_All_20180418.vcf -O recal_data.table
+
+[December 15, 2020 4:19:37 PM EET] org.broadinstitute.hellbender.tools.walkers.bqsr.BaseRecalibrator done. Elapsed time: 6.55 minutes.
+Runtime.totalMemory()=13362003968
+Tool returned:
+SUCCESS
+
+#ApplyBQSR
+
+/mnt/gkhazen/NGS-Fall2020/gatk-4.1.9.0/gatk ApplyBQSR \
+-R ref_chrom/chr13.fa \
+-I 392_dedup.bam \
+--bqsr-recal-file recal_data.table \
+-O output_recal.bam
+
+/mnt/gkhazen/NGS-Fall2020/gatk-4.1.9.0/gatk ApplyBQSR -R ref_chrom/chr13.fa -I 392_dedup.bam --bqsr-recal-file recal_data.table -O output_recal.bam
+
+[December 15, 2020 4:52:01 PM EET] org.broadinstitute.hellbender.tools.walkers.bqsr.BaseRecalibrator done. Elapsed time: 6.26 minutes.
+Runtime.totalMemory()=14309392384
+Tool returned:
+SUCCESS
+
+#HaplotypeCaller
+#HaplotypeCaller runs per-sample to generate an intermediate GVCF (not to be used in final analysis), which can then be used in GenotypeGVCFs for joint genotyping of multiple samples in a very efficient way.
+
+/mnt/gkhazen/NGS-Fall2020/gatk-4.1.9.0/gatk --java-options "-Xmx16g" HaplotypeCaller \
+-R ref_chrom/chr13.fa \
+-I output_recal.bam \
+-O output.g.vcf.gz \
+-ERC GVCF
+
+/mnt/gkhazen/NGS-Fall2020/gatk-4.1.9.0/gatk --java-options "-Xmx16g" HaplotypeCaller -R ref_chrom/chr13.fa -I output_recal.bam -O output.g.vcf.gz -ERC GVCF
+
+#gvcf file instead of vcf, for grouping samples according to genotype / case/controls
+[December 15, 2020 7:48:11 PM EET] org.broadinstitute.hellbender.tools.walkers.haplotypecaller.HaplotypeCaller done. Elapsed time: 72.30 minutes.
+Runtime.totalMemory()=3538944000
+
+#GenotypeGVCF
+#joint genotyping on a single input, which may contain one or many samples
+
+/mnt/gkhazen/NGS-Fall2020/gatk-4.1.9.0/gatk --java-options "-Xmx16g" GenotypeGVCFs \
+-R ref_chrom/chr13.fa \
+-V output.g.vcf.gz \ #input of this command is output of Haplotype Caller
+-O output.vcf.gz
+
+/mnt/gkhazen/NGS-Fall2020/gatk-4.1.9.0/gatk --java-options "-Xmx16g" GenotypeGVCFs -R ref_chrom/chr13.fa -V output.g.vcf.gz -O output.vcf.gz
+
+[December 15, 2020 8:06:46 PM EET] org.broadinstitute.hellbender.tools.walkers.GenotypeGVCFs done. Elapsed time: 0.92 minutes.
+Runtime.totalMemory()=5145886720
+
+#The last two steps didn't work
+#Read GATK Documentation
+
+#counts all variants
+/mnt/gkhazen/NGS-Fall2020/gatk-4.1.9.0/gatk CountVariants -V output.vcf.gz
+#OUTPUT
+[December 16, 2020 1:09:30 AM EET] org.broadinstitute.hellbender.tools.walkers.CountVariants done. Elapsed time: 0.02 minutes.
+Runtime.totalMemory()=2227699712
+Tool returned:
+22711
+
+#selects SNPS
+/mnt/gkhazen/NGS-Fall2020/gatk-4.1.9.0/gatk SelectVariants -R ref_chrom/chr13.fa -V output.vcf.gz  --select-type-to-include SNP -O SNP_392.vcf
+[December 16, 2020 1:12:58 AM EET] org.broadinstitute.hellbender.tools.walkers.variantutils.SelectVariants done. Elapsed time: 0.04 minutes.
+Runtime.totalMemory()=2216689664
+#counts SNPS
+/mnt/gkhazen/NGS-Fall2020/gatk-4.1.9.0/gatk CountVariants -V SNP_392.vcf
+[December 16, 2020 1:16:23 AM EET] org.broadinstitute.hellbender.tools.walkers.CountVariants done. Elapsed time: 0.01 minutes.
+Runtime.totalMemory()=2205155328
+Tool returned:
+21953
+
+#selects INDELs
+/mnt/gkhazen/NGS-Fall2020/gatk-4.1.9.0/gatk SelectVariants -R ref_chrom/chr13.fa -V output.vcf.gz  --select-type-to-include INDEL -O INDEL_392.vcf
+[December 16, 2020 1:17:10 AM EET] org.broadinstitute.hellbender.tools.walkers.variantutils.SelectVariants done. Elapsed time: 0.02 minutes.
+Runtime.totalMemory()=2123890688
+#counts INDELs
+/mnt/gkhazen/NGS-Fall2020/gatk-4.1.9.0/gatk CountVariants -V INDEL_392.vcf
+[December 16, 2020 1:17:51 AM EET] org.broadinstitute.hellbender.tools.walkers.CountVariants done. Elapsed time: 0.01 minutes.
+Runtime.totalMemory()=2286944256
+Tool returned:
+755
+
+#Scripts
+
+#Subset Test Files
+zcat 392_1_trimmed_R1_paired.fastq.gz | head -n 1000 > test1.fastq
+zcat 392_2_trimmed_R2_paired.fastq.gz | head -n 1000 > test2.fastq
+scp -r pia.chouaifaty@linuxdev.accbyblos.lau.edu.lb:FunctionalFinalProject/test* /Users/piachouaifaty
+
+#do on home dir
+Rscript Find_Read_Lengths.R test1.fastq
+Rscript Min_10_Length_IDs.R test1.fastq
+Rscript Max_Score_IDs.R test1.fastq
