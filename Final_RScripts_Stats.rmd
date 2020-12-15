@@ -329,6 +329,9 @@ vectlen=append(vectlen, slen)
 vectlen
 unique(vectlen)
 ```
+
+Length of Remaining Reads After Trimming
+
 ```{r}
 Find_Read_Lengths = function(fstq_file_path)
 {
@@ -341,8 +344,7 @@ Find_Read_Lengths = function(fstq_file_path)
 seq_vect=as.vector(sread(fstq_file)[i]) #the sequence as a vector
 slen=nchar(seq_vect) #length of the vector
 vectlen=append(vectlen, slen)
-}
-
+  }
   
 vectlen
 print(paste0("The lengths after trimming (unique): "))
@@ -354,6 +356,73 @@ return(sort(unique(vectlen)))
 Find_Read_Lengths(r1path)
 ```
 
+Maximum average read phred score+Read IDS with that Score.
+
+```{r}
+fstq_file_path=r1path
+vectmeans=c()
+fstq_file=readFastq(fstq_file_path)
+n=length(sread(fstq_file)) #number of reads
+
+for (i in 1:n) #for each read
+{
+seq_vect=as.vector(sread(fstq_file)[i]) #the sequence as a vector
+slen=nchar(seq_vect) #length of the vector
+qual=as(quality(fstq_file)[i], "matrix")[,1:slen] #qualities of bases as a vector
+vectmeans=append(vectmeans, mean(qual)) #mean qs of read, add to mean quality vector
+}
+
+#which.max(vectmeans) #get index of read with highest average quality
+
+idxmax=which.max(vectmeans)
+
+max_score=vectmeans[idxmax] #maximum score
+
+print(paste0("Max Average quality: ", max_score)) 
+
+idxmaxes=which(vectmeans==max_score) #indeces of reads with the maximum score
+
+print("Indeces of reads with max average quality: ")
+print(idxmaxes)
+print(paste0("Read ID: ", as.vector(id(fstq_file)[c(idxmaxes)]))) #headers of reads with max score
+```
+
+```{r}
+Max_Score_IDs = function(fstq_file_path)
+  
+{
+vectmeans=c()
+fstq_file=readFastq(fstq_file_path)
+n=length(sread(fstq_file)) #number of reads
+
+for (i in 1:n) #for each read
+{
+seq_vect=as.vector(sread(fstq_file)[i]) #the sequence as a vector
+slen=nchar(seq_vect) #length of the vector
+qual=as(quality(fstq_file)[i], "matrix")[,1:slen] #qualities of bases as a vector
+vectmeans=append(vectmeans, mean(qual)) #mean qs of read, add to mean quality vector
+}
+
+#which.max(vectmeans) #get index of read with highest average quality
+
+idxmax=which.max(vectmeans)
+
+max_score=vectmeans[idxmax] #maximum score
+
+print(paste0("Max Average quality: ", max_score)) 
+
+idxmaxes=which(vectmeans==max_score) #indeces of reads with the maximum score
+
+print("Indeces of reads with max average quality: ")
+print(idxmaxes)
+print(paste0("Read ID: ", as.vector(id(fstq_file)[c(idxmaxes)]))) #headers of reads with max score
+}
+```
+
+
+```{r}
+Max_Score_IDs(r1path)
+```
 
 
 
