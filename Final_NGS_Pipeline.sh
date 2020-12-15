@@ -172,7 +172,6 @@ samtools view -c -f 0x400 392_dedup.bam
 934746
 
 #Realignment, need an index file and a dictionary file
-
 /mnt/gkhazen/NGS-Fall2020/gatk-4.1.9.0/gatk CreateSequenceDictionary \
 R=ref_chrom/chr13.fa \
 O=ref_chrom/chr13.dict
@@ -183,3 +182,14 @@ O=ref_chrom/chr13.dict
 Runtime.totalMemory()=2084569088
 Tool returned:
 0
+
+samtools faidx ref_chrom/chr13.fa
+
+#BaseRecalibrator
+/mnt/gkhazen/NGS-Fall2020/gatk-4.1.9.0/gatk BaseRecalibrator \
+-I 392_dedup.bam \
+-R ref_chrom/chr13.fa \
+--known-sites /mnt/NGSdata/snpdb151_All_20180418.vcf \
+-O recal_data.table
+
+/mnt/gkhazen/NGS-Fall2020/gatk-4.1.9.0/gatk BaseRecalibrator -I 392_dedup.bam -R ref_chrom/chr13.fa --known-sites /mnt/NGSdata/snpdb151_All_20180418.vcf -O recal_data.table
