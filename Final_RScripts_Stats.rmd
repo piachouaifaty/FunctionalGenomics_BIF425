@@ -7,3 +7,353 @@ output: html_document
 
 Here I write the scripts for the statistics and test them on small fastq, sam and vcf files.
 
+```{r}
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+
+if (!requireNamespace("ShortRead", quietly = TRUE))
+  BiocManager::install("ShortRead")
+
+library(ShortRead)
+```
+
+```{r}
+r1path="/Users/piachouaifaty/test1.fastq"
+```
+
+```{r}
+r1=readFastq(r1path)
+```
+
+
+```{r}
+sread(r1)[1:2] #sequences of the first two reads
+```
+
+```{r}
+#quality in ASCII of first two reads
+quality(r1)[1:2]
+
+```
+
+```{r}
+id(r1)[1:2]
+#header of first 2 reads
+```
+
+```{r}
+#Converts THEN subsets
+#as(quality(r1), "matrix")[1:2,1:10]
+#the first 10 qs for the first 2 sequences
+```
+
+```{r}
+#subsets THEN converts
+as(quality(r1)[1:2], "matrix")[,1:10]
+#the first 10 qs for the first 2 sequences
+```
+
+```{r}
+as(quality(r1)[1], "matrix")[,1:3]
+```
+
+Extracting information from the head of the fastq
+```{r}
+#the id of the 250th read
+id(r1)[250]
+as.vector(id(r1)[250])
+```
+
+```{r}
+head=as.vector(id(r1)[250])
+
+labels=c("instrument", "run_number", "flowcell_ID", "lane", "tile", "x_coordinate", "y_coordinate", "read", "is_filtered", "control_number", "index_seq")
+
+c=unlist(strsplit(as.vector(id(r1)[1]), split=":"))
+spl=unlist(strsplit(c[7], split=" "))
+v=append(c[1:6], spl)
+v=append(v, c[8:10])
+names(v)=labels
+v
+```
+
+Sequence length
+```{r}
+sread(r1)[1] #sequence of the read
+seq_vect=as.vector(sread(r1)[1]) #the sequence as a vector
+seq_vect
+nchar(seq_vect) #length of the vector
+```
+
+Sequence Quality
+```{r}
+i=200 #read_index
+
+seq_vect=as.vector(sread(r1)[i]) #the sequence as a vector
+seq_vect
+l=nchar(seq_vect)
+qual=as(quality(r1)[i], "matrix")[,1:l]
+qual
+mean(qual)
+```
+
+You need to write a script that allows the processing of fastq files (The ones you obtained after trimming) and preforms the following:
+
+1. The code should take an argument the desired length of the read (36, 80, 100...)
+2. Compute the total number of reads that have this length
+3. Calculate the average score for each read with that length.
+4. Return the total number of reads, and the average of each read with that length
++Return Tile ID
+
+```{r}
+len=129
+fstq_file=r1
+
+avg=c()
+ct=0
+for (i in 1:length(fstq_file))
+{
+seq_vect=as.vector(sread(fstq_file)[i]) #the sequence as a vector
+l=nchar(seq_vect)
+if (l==len)
+{
+  ct=ct+1
+qual=as(quality(fstq_file)[i], "matrix")[,1:l]
+avg_qual=mean(qual)
+avg=append(avg, avg_qual)
+
+head=as.vector(id(fstq_file)[i])
+labels=c("instrument", "run_number", "flowcell_ID", "lane", "tile", "x_coordinate", "y_coordinate", "read", "is_filtered", "control_number", "index_seq")
+
+c=unlist(strsplit(as.vector(id(fstq_file)[i]), split=":"))
+spl=unlist(strsplit(c[7], split=" "))
+v=append(c[1:6], spl)
+v=append(v, c[8:10])
+names(v)=labels
+
+tile_id=v["tile"]
+
+print(paste0("Tile ID:", tile_id))
+print(paste0("Read average quality:", avg_qual))
+}
+}
+print(paste0("There are ", ct))
+print(paste0(" reads with length=", len))
+```
+
+Function
+```{r}
+Find_AvgQS_With_Seq_Length = function(fstq_file_path, len)
+{
+  fstq_file=readFastq(fstq_file_path)
+avg=c()  
+ct=0
+for (i in 1:length(fstq_file))
+{
+seq_vect=as.vector(sread(fstq_file)[i]) #the sequence as a vector
+l=nchar(seq_vect)
+if (l==len)
+{
+  ct=ct+1
+qual=as(quality(fstq_file)[i], "matrix")[,1:l]
+avg_qual=mean(qual)
+avg=append(avg, avg_qual)
+
+head=as.vector(id(fstq_file)[i])
+labels=c("instrument", "run_number", "flowcell_ID", "lane", "tile", "x_coordinate", "y_coordinate", "read", "is_filtered", "control_number", "index_seq")
+
+c=unlist(strsplit(as.vector(id(fstq_file)[i]), split=":"))
+spl=unlist(strsplit(c[7], split=" "))
+v=append(c[1:6], spl)
+v=append(v, c[8:10])
+names(v)=labels
+
+tile_id=v["tile"]
+
+print(paste0("Tile ID:", tile_id))
+print(paste0("Read average quality:", avg_qual))
+}
+}
+avg=mean(avg)
+print(paste0("There are ", ct))
+print(paste0(" reads with length=", len))
+print(paste0("Average quality of all reads=", avg))
+  
+}
+```
+
+Function Test:
+```{r}
+Find_AvgQS_With_Seq_Length(r1path, 36)
+```
+
+Which reads belong to a certain tile number?
+```{r}
+tile_num=1101
+fstq_file=r1
+
+idx=c()
+ct=0
+for (i in 1:length(fstq_file))
+{
+
+  seq_vect=as.vector(sread(fstq_file)[i]) #the sequence as a vector
+head=as.vector(id(fstq_file)[i])
+labels=c("instrument", "run_number", "flowcell_ID", "lane", "tile", "x_coordinate", "y_coordinate", "read", "is_filtered", "control_number", "index_seq")
+c=unlist(strsplit(as.vector(id(fstq_file)[i]), split=":"))
+spl=unlist(strsplit(c[7], split=" "))
+v=append(c[1:6], spl)
+v=append(v, c[8:10])
+names(v)=labels
+
+if (tile_num==v["tile"])
+{
+  ct=ct+1
+idx=append(idx, i)
+print(paste0("Tile ID:", tile_id))
+}
+}
+
+idx
+```
+
+Function
+```{r}
+Find_idx_Reads_Tile_Num = function(fstq_file_path, tile_num)
+{
+  fstq_file=readFastq(fstq_file_path)
+  idx=c()
+ct=0
+for (i in 1:length(fstq_file))
+{
+
+  seq_vect=as.vector(sread(fstq_file)[i]) #the sequence as a vector
+head=as.vector(id(fstq_file)[i])
+labels=c("instrument", "run_number", "flowcell_ID", "lane", "tile", "x_coordinate", "y_coordinate", "read", "is_filtered", "control_number", "index_seq")
+c=unlist(strsplit(as.vector(id(fstq_file)[i]), split=":"))
+spl=unlist(strsplit(c[7], split=" "))
+v=append(c[1:6], spl)
+v=append(v, c[8:10])
+names(v)=labels
+tile_id=v["tile"]
+
+
+if (tile_num==v["tile"])
+{
+  ct=ct+1
+idx=append(idx, i)
+print(paste0("Tile ID:", tile_id))
+}
+}
+  
+  return(idx)
+}
+```
+
+Testing the Function
+```{r}
+Find_idx_Reads_Tile_Num(r1path, 1101)
+```
+
+getting the indeces to keep
+```{r}
+all=c(1:length(r1))
+rmv=idx
+```
+
+
+Create a FASTQ file from a list of indeces of reads from another fastq file
+```{r}
+idx=c(1,2)
+fstq_file=r1
+
+r=ShortReadQ()
+for (i in idx)
+{
+  r=append(r, fstq_file[i])
+}
+r
+```
+
+```{r}
+```
+
+
+```{r}
+Create_FastQ_from_idx = function(fstq_file_path, idx)
+{
+  r=ShortReadQ()
+for (i in idx)
+{
+  r=append(r, fstq_file[i])
+}
+  
+  return(r)
+}
+```
+
+Testing the Function
+```{r}
+r=Create_FastQ_from_idx(r1path, c(1:100))
+r
+```
+
+Writing to a fastq file
+```{r}
+#object=fastq object
+#file: path to be written to
+#mode="w" --> write
+#mode="a" ---> append
+
+#writeFastq(object, file, mode="w", full=FALSE, compress=F, ...)
+
+#writeFastq(r, destination_path, mode="w", full=FALSE, compress=F)
+
+writeFastq(r, "/Users/piachouaifaty/Functional/testfastq.fastq.gz", mode="w", full=FALSE, compress=T)
+
+```
+
+
+Length of remaining reads after trimming:  
+```{r}
+vectlen=c()
+l=200
+
+for (i in 1:l)
+{
+seq_vect=as.vector(sread(r1)[i]) #the sequence as a vector
+slen=nchar(seq_vect) #length of the vector
+vectlen=append(vectlen, slen)
+}
+
+vectlen
+unique(vectlen)
+```
+```{r}
+Find_Read_Lengths = function(fstq_file_path)
+{
+  vectlen=c()
+  fstq_file=readFastq(fstq_file_path)
+  l=length(sread(fstq_file)) #number of reads
+  
+  for (i in 1:l)
+{
+seq_vect=as.vector(sread(fstq_file)[i]) #the sequence as a vector
+slen=nchar(seq_vect) #length of the vector
+vectlen=append(vectlen, slen)
+}
+
+  
+vectlen
+print(paste0("The lengths after trimming (unique): "))
+return(sort(unique(vectlen)))
+}
+```
+
+```{r}
+Find_Read_Lengths(r1path)
+```
+
+
+
+
