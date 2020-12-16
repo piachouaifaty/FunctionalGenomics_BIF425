@@ -459,3 +459,51 @@ print(min10)
 Min_10_Length_IDs(r1path)
 ```
 
+### VCF
+
+```{r}
+if (!requireNamespace("vcfR", quietly = TRUE))
+  install.packages("vcfR")
+library(vcfR)
+```
+
+```{r}
+path="/Users/piachouaifaty/output.vcf"
+vcf = read.vcfR(path, verbose = FALSE )
+```
+
+```{r}
+metadta=vcf@meta
+```
+
+```{r}
+fixed=vcf@fix
+```
+
+```{r}
+opt=vcf@gt
+head(opt)
+```
+
+```{r}
+
+opt=vcf@gt
+
+hom_wild = c("0/0", "0|0") #homozygous wild type
+hetero = c("0/1", "0|1") #heterozygous
+hom_mut= c("1/1", "1|1") #homozygous mutant
+
+count_hom_wild=0
+count_hetero=0
+count_hom_mut=0
+
+#opt[,"392"]
+
+
+
+
+
+strsplit(opt[i,"392"],":")[[1]][1]
+```
+
+
