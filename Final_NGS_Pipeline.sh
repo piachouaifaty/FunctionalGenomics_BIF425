@@ -166,12 +166,63 @@ Runtime.totalMemory()=14134280192
 Tool returned:
 0
 
+###SAMTOOLS STATS
+
+#-f only output reads with that bit
+#-F only output reads WITHOUT that bit
+
 #checking duplicates (possible only after MarkDuplicates)
 samtools view -f 0x400 392_dedup.bam
 
 #to count them without printing them
 samtools view -c -f 0x400 392_dedup.bam
 934746
+
+# get the total number of reads of a BAM file (may include unmapped and duplicated multi-aligned reads)
+#(unmapped reads + each aligned location per mapped read
+samtools view -c 392_dedup.bam
+61204902
+
+# counting only mapped (primary aligned) reads
+samtools view -c -F 260 392_dedup.bam
+#read unmapped (0x4)
+#not primary alignment (0x100)
+#Flag: 260
+#-F to exclude them
+5805578
+
+#unique (without multimapping)
+#read unmapped (0x4)
+#excludes unmapped reads, sorts and keeps only unique
+samtools view -F 0x4 392_dedup.bam | cut -f 1 | sort | uniq | wc -l
+2619706
+
+(mapped/total)*100
+
+#Number of reads without a pair complement
+#An alignment with an unmapped mate is marked with a ‘*’ in column 7.
+samtools view 392_dedup.bam | cut -f 7 | grep -c '*'
+55399324
+
+#Use the CIGAR string, to compute the number of reads without any Insertion or Deletion
+#WITH INSERTIONS/DELETIONS
+#column 6 has insertions and deletions
+samtools view 392_dedup.bam | cut -f 6 | grep -c -E 'I|D'
+997161
+#WITHOUT = TOTAL - WITH
+
+#- Number of supplementary and secondary reads
+#supplementary alignment (0x800)
+samtools view -c -f 0x800 392_dedup.bam
+566166
+
+#Average Mapping score/quality for the mapped reads
+#-F 0X4 excludes unmapped reads
+#awk gets the MapQ
+samtools view -F 0x4 392_dedup.bam |  awk '{sum+=$5} END {print "Mean MAPQ =",sum/NR}'
+Mean MAPQ = 19.1783
+
+###END
 
 #Realignment, need an index file and a dictionary file
 /mnt/gkhazen/NGS-Fall2020/gatk-4.1.9.0/gatk CreateSequenceDictionary \
@@ -279,6 +330,8 @@ Tool returned:
 
 #Scripts
 
+scp -r pia.chouaifaty@linuxdev.accbyblos.lau.edu.lb:FunctionalFinalProject/output.vcf.gz /Users/piachouaifaty
+
 #Subset Test Files
 zcat 392_1_trimmed_R1_paired.fastq.gz | head -n 1000 > test1.fastq
 zcat 392_2_trimmed_R2_paired.fastq.gz | head -n 1000 > test2.fastq
@@ -297,5 +350,3 @@ time Rscript Count_Hom_Hetero.R output.vcf
 #real	0m2.585s
 #user	0m2.296s
 #sys	0m0.224s
-
-scp -r pia.chouaifaty@linuxdev.accbyblos.lau.edu.lb:FunctionalFinalProject/output.vcf.gz /Users/piachouaifaty
