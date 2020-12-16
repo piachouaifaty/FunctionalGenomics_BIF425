@@ -27,6 +27,8 @@ time fastqc -o FastQCResults 392_1.fastq.gz  392_2.fastq.gz
 #Copy html report files into my machine
 scp -r pia.chouaifaty@linuxdev.accbyblos.lau.edu.lb:FunctionalFinalProject/FastQCResults /Users/piachouaifaty
 
+#TILES!! all good
+
 #Checking adapter files
 cat TruSeq2-PE.fa #yes
 cat TruSeq3-PE.fa #no
@@ -286,3 +288,14 @@ scp -r pia.chouaifaty@linuxdev.accbyblos.lau.edu.lb:FunctionalFinalProject/test*
 Rscript Find_Read_Lengths.R test1.fastq
 Rscript Min_10_Length_IDs.R test1.fastq
 Rscript Max_Score_IDs.R test1.fastq
+
+time Rscript Count_Hom_Hetero.R output.vcf
+
+#[1] "Homozygous Wild Type: 0"
+#[1] "Heterozygous: 4253"
+#[1] "Homozygous Mutant: 18408"
+#real	0m2.585s
+#user	0m2.296s
+#sys	0m0.224s
+
+scp -r pia.chouaifaty@linuxdev.accbyblos.lau.edu.lb:FunctionalFinalProject/output.vcf.gz /Users/piachouaifaty
